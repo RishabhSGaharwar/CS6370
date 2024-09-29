@@ -35,8 +35,6 @@ class lsa():
 		index = None
 		index={tokens: {} for d in docs for sentence in d for tokens in sentence}
 		doc_count = len(docs)
-		term_list=list(index.keys())
-		term_count=len(term_list)
 		flattened_docs=[]
 
 		for doc in docs:
@@ -51,6 +49,37 @@ class lsa():
 		
 		# self.index = index
 		# self.doc_IDs = docIDs
+		bigram_dic={}
+		for doc_ind in range(len(docs)):
+			id=docIDs[doc_ind]
+			for sentence_ind in range(len(docs[doc_ind])):
+				sentence=docs[doc_ind][sentence_ind]
+				sent_len=len(sentence)
+				j=0
+				while j < sent_len - 1:
+					tokens=[]
+					for i in range(j,j+2):
+						tokens.append(sentence[i])
+					tokens=tuple(tokens)
+					if tokens not in index:
+						bigram_dic[tokens]={id:1}
+					else:
+						idVals = bigram_dic.get(tokens)
+						idVals[id] = idVals.get(id, 0) + 1
+					j+=1
+		sum_dic={}
+		for bigram in bigram_dic:
+			sum=0
+			for doc_id in bigram_dic[bigram]:
+				sum+=bigram_dic[bigram][doc_id]
+			sum_dic[bigram]=sum
+		sorted_sumdict = sorted(sum_dic, key=sum_dic.get, reverse=True)[:(len(sum_dic)*(25))//100]
+		for key in sorted_sumdict:
+			index[key] = bigram_dic[key]	
+		
+		term_list=list(index.keys())
+		term_count=len(term_list)
+		
 		td_matrix=np.zeros((term_count,doc_count))
 		for i in range(term_count):
 			for j in range(doc_count):
@@ -118,9 +147,27 @@ class lsa():
 
 		for query in queries:
 			flattened_query=[token for sentence in query for token in sentence]
+			query_ngram={}
+			for sentence in query:
+				sent_len=len(sentence)
+				j=0
+				while j < sent_len - 1:
+					tokens=[]
+					for i in range(j,j+2):
+						tokens.append(sentence[i])
+					tokens=tuple(tokens)
+					if tokens not in query_ngram:
+						query_ngram[tokens]=1
+					else:
+						query_ngram[tokens]+=1
+					j+=1
 			query_vec=np.zeros(term_count)
 			for i in range(term_count):
-				query_vec[i]=flattened_query.count(term_list[i])*idf[term_list[i]]
+				if type(term_list[i]) == tuple:
+					if term_list[i] in query_ngram:
+						query_vec[i]=query_ngram[term_list[i]]*idf[term_list[i]]
+					else:
+						query_vec[term_list[i]]=flattened_query.count(term_list[i])*idf[term_list[i]]
 			sim_dict={}
 			vector2 = np.array(query_vec)
 			magnitude2 = np.linalg.norm(vector2)

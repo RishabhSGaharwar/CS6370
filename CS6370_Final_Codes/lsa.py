@@ -1,6 +1,7 @@
 from util import *
 from math import log10, sqrt
 import numpy as np
+from scipy.linalg import svd
 
 
 # Add your import statements here
@@ -8,12 +9,12 @@ import numpy as np
 
 
 
-class ongram():
+class lsa():
 
 	def __init__(self):
 		self.index = None
 		self.doc_IDs = None
-		self.n=None
+		self.lsi=None
 
 	def buildIndex(self, docs, docIDs):
 		"""
@@ -32,37 +33,48 @@ class ongram():
 		"""
 
 		index = None
-		n=2
-		index={}
-		total_docs = len(docs)
+		index={tokens: {} for d in docs for sentence in d for tokens in sentence}
+		doc_count = len(docs)
+		term_list=list(index.keys())
+		term_count=len(term_list)
+		flattened_docs=[]
 
+		for doc in docs:
+			flattened_docs.append([token for sentence in doc for token in sentence])
 
 
 		for doc_ind in range(len(docs)):
-			id=docIDs[doc_ind]
-			for sentence_ind in range(len(docs[doc_ind])):
-				sentence=docs[doc_ind][sentence_ind]
-				sent_len=len(sentence)
-				j=0
-				while j < sent_len - n + 1:
-					tokens=[]
-					for i in range(j,j+n):
-						tokens.append(sentence[i])
-					tokens=tuple(tokens)
-					if tokens not in index:
-						index[tokens]={id:1}
-					else:
-						idVals = index.get(tokens)
-						freqVal = idVals.get(id, 0)
-						idVals[id] = freqVal + 1
-					j+=1
-		#Fill in code here
-
+			for sentence in docs[doc_ind]:
+				for term in sentence:
+					if docIDs[doc_ind] not in index[term]:
+						index[term][docIDs[doc_ind]]=flattened_docs[doc_ind].count(term)
+		
+		# self.index = index
+		# self.doc_IDs = docIDs
+		td_matrix=np.zeros((term_count,doc_count))
+		for i in range(term_count):
+			for j in range(doc_count):
+				if (j+1) in index[term_list[i]]:
+					td_matrix[i][j] = index[term_list[i]][j+1]
+				
 		self.index = index
 		self.doc_IDs = docIDs
-		self.n=n
-
-
+		k=550
+		U,S,V=svd(td_matrix)
+		U1 = U[:,:k]
+		S1 = S[:k]
+		V1 = V[:k]
+		D1 = np.diag(S1)
+		td_matrix_k = U1 @ D1 @ V1
+		lsi={tokens: {} for d in docs for sentence in d for tokens in sentence}
+        
+		for i in range(term_count):
+			for j in range(doc_count):
+				lsi[term_list[i]][j+1]=td_matrix_k[i][j]
+        
+		self.lsi=lsi
+				
+		
 	def rank(self, queries):
 		"""
 		Rank the documents according to relevance for each query
@@ -85,7 +97,7 @@ class ongram():
 
 		index=self.index
 		docIDs=self.doc_IDs
-		n=self.n
+		lsi=self.lsi
 
 		term_list=list(index.keys())
 		doc_count=len(docIDs)
@@ -99,31 +111,16 @@ class ongram():
 		
 		for i in range(term_count):
 			for j in range(doc_count):
-				if j+1 in index[term_list[i]]:
-					doc_mat[i][j]= index[term_list[i]][j+1] * idf[term_list[i]]
+				if j+1 in lsi[term_list[i]]:
+					doc_mat[i][j]= lsi[term_list[i]][j+1] * idf[term_list[i]]
 
 		doc_mat_transpose=doc_mat.T
 
 		for query in queries:
 			flattened_query=[token for sentence in query for token in sentence]
 			query_vec=np.zeros(term_count)
-			query_ngram={}
-			for sentence in query:
-				sent_len=len(sentence)
-				j=0
-				while j < sent_len - n + 1:
-					tokens=[]
-					for i in range(j,j+n):
-						tokens.append(sentence[i])
-					tokens=tuple(tokens)
-					if tokens not in query_ngram:
-						query_ngram[tokens]=1
-					else:
-						query_ngram[tokens]+=1
-					j+=1
 			for i in range(term_count):
-				if term_list[i] in query_ngram:
-					query_vec[i]=query_ngram[term_list[i]]*idf[term_list[i]]
+				query_vec[i]=flattened_query.count(term_list[i])*idf[term_list[i]]
 			sim_dict={}
 			vector2 = np.array(query_vec)
 			magnitude2 = np.linalg.norm(vector2)

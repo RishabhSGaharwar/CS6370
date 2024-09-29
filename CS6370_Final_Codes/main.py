@@ -5,8 +5,7 @@ from stopwordRemoval import StopwordRemoval
 from informationRetrieval import InformationRetrieval
 from lsa import lsa
 from query_expansion import query_expansion
-from glasgow_lsa import glasgow_lsa
-from old_ngram import ongram
+from normalised_lsa import normalised_lsa
 from ngram import ngram
 from lsa_hybrid import lsa_hybrid
 from evaluation import Evaluation
@@ -40,7 +39,7 @@ class SearchEngine:
 		self.inflectionReducer = InflectionReduction()
 		self.stopwordRemover = StopwordRemoval()
 		self.query_expansion=query_expansion()
-		self.informationRetriever = ngram()
+		self.informationRetriever = lsa()
 		self.evaluator = Evaluation()
 
 

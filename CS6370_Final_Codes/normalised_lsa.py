@@ -9,7 +9,7 @@ from scipy.linalg import svd
 
 
 
-class glasgow_lsa():
+class normalised_lsa():
 
 	def __init__(self):
 		self.index = None
@@ -65,7 +65,7 @@ class glasgow_lsa():
 				
 		self.index = index
 		self.doc_IDs = docIDs
-		k=500
+		k=550
 		U,S,V=svd(td_matrix)
 		U1 = U[:,:k]
 		S1 = S[:k]
